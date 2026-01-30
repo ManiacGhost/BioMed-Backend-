@@ -8,6 +8,9 @@ router.get('/', courseController.getAllCourses);
 // Get courses with filters and pagination
 router.get('/filtered', courseController.getFilteredCourses);
 
+// Get courses by category ID
+router.get('/category/:category_id', courseController.getCoursesByCategory);
+
 // Get course by ID
 router.get('/:id', courseController.getCourseById);
 

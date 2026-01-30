@@ -137,3 +137,59 @@ exports.getFilteredCourses = async (req, res) => {
     });
   }
 };
+
+// Get courses by category ID
+exports.getCoursesByCategory = async (req, res) => {
+  try {
+    const { category_id } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    if (!category_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'Category ID is required'
+      });
+    }
+
+    // Get total count
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as count FROM course WHERE category_id = $1',
+      [parseInt(category_id)]
+    );
+    const totalRecords = parseInt(countResult.rows[0].count);
+
+    // Get paginated results
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    const result = await pool.query(
+      'SELECT * FROM course WHERE category_id = $1 ORDER BY id DESC LIMIT $2 OFFSET $3',
+      [parseInt(category_id), limitNum, offset]
+    );
+
+    const courses = result.rows.map(course => new Course(course));
+
+    res.status(200).json({
+      success: true,
+      message: `Courses retrieved successfully for category ${category_id}`,
+      data: courses,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalRecords / limitNum),
+        pageSize: limitNum,
+        totalRecords: totalRecords,
+        categoryId: parseInt(category_id)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching courses by category:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve courses by category'
+    });
+  }
+};
