@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const User = require('../models/User');
 const pool = require('../config/database');
+const cloudinary = require('../config/cloudinary');
 
 // Hash password
 const hashPassword = (password) => {
@@ -522,6 +523,114 @@ exports.changeUserStatus = async (req, res) => {
       success: false,
       error: 'Internal Server Error',
       message: 'Failed to update user status'
+    });
+  }
+};
+
+// Upload profile image
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'No image file provided'
+      });
+    }
+
+    // Check if user exists
+    const userCheck = await pool.query(
+      'SELECT id FROM users_biomed WHERE id = $1',
+      [id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'User not found'
+      });
+    }
+
+    // Upload to Cloudinary
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'biomed/profiles',
+        resource_type: 'auto',
+        quality: 'auto',
+        fetch_format: 'auto',
+        public_id: `user_${id}_${Date.now()}`
+      },
+      async (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          return res.status(500).json({
+            success: false,
+            error: 'Upload Failed',
+            message: 'Failed to upload image to Cloudinary'
+          });
+        }
+
+        try {
+          // Update user's profile_image_url
+          const updateResult = await pool.query(
+            `UPDATE users_biomed
+             SET profile_image_url = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2
+             RETURNING id, first_name, last_name, title, email, phone, address,
+                       profile_image_url, biography, linkedin_url, github_url,
+                       role, is_instructor, status, created_at, updated_at`,
+            [result.secure_url, id]
+          );
+
+          const user = new User(updateResult.rows[0]);
+
+          res.status(200).json({
+            success: true,
+            message: 'Profile image uploaded successfully',
+            data: {
+              user: user,
+              image: {
+                cloudinary_id: result.public_id,
+                url: result.secure_url,
+                width: result.width,
+                height: result.height,
+                size: result.bytes,
+                format: result.format
+              }
+            },
+            timestamp: new Date().toISOString()
+          });
+        } catch (dbError) {
+          console.error('Database error:', error);
+          res.status(200).json({
+            success: true,
+            message: 'Image uploaded but user profile update failed',
+            data: {
+              image: {
+                cloudinary_id: result.public_id,
+                url: result.secure_url,
+                width: result.width,
+                height: result.height,
+                size: result.bytes,
+                format: result.format
+              }
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    );
+
+    uploadStream.end(req.file.buffer);
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'Failed to process profile image upload'
     });
   }
 };
