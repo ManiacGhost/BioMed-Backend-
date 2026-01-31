@@ -530,8 +530,6 @@ exports.changeUserStatus = async (req, res) => {
 // Upload profile image
 exports.uploadProfileImage = async (req, res) => {
   try {
-    const { id } = req.params;
-
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -540,28 +538,15 @@ exports.uploadProfileImage = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const userCheck = await pool.query(
-      'SELECT id FROM users_biomed WHERE id = $1',
-      [id]
-    );
+    const folder = 'biomed/profiles';
 
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Not Found',
-        message: 'User not found'
-      });
-    }
-
-    // Upload to Cloudinary
+    // Upload to Cloudinary from buffer
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: 'biomed/profiles',
+        folder: folder,
         resource_type: 'auto',
         quality: 'auto',
-        fetch_format: 'auto',
-        public_id: `user_${id}_${Date.now()}`
+        fetch_format: 'auto'
       },
       async (error, result) => {
         if (error) {
@@ -573,54 +558,19 @@ exports.uploadProfileImage = async (req, res) => {
           });
         }
 
-        try {
-          // Update user's profile_image_url
-          const updateResult = await pool.query(
-            `UPDATE users_biomed
-             SET profile_image_url = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2
-             RETURNING id, first_name, last_name, title, email, phone, address,
-                       profile_image_url, biography, linkedin_url, github_url,
-                       role, is_instructor, status, created_at, updated_at`,
-            [result.secure_url, id]
-          );
-
-          const user = new User(updateResult.rows[0]);
-
-          res.status(200).json({
-            success: true,
-            message: 'Profile image uploaded successfully',
-            data: {
-              user: user,
-              image: {
-                cloudinary_id: result.public_id,
-                url: result.secure_url,
-                width: result.width,
-                height: result.height,
-                size: result.bytes,
-                format: result.format
-              }
-            },
-            timestamp: new Date().toISOString()
-          });
-        } catch (dbError) {
-          console.error('Database error:', error);
-          res.status(200).json({
-            success: true,
-            message: 'Image uploaded but user profile update failed',
-            data: {
-              image: {
-                cloudinary_id: result.public_id,
-                url: result.secure_url,
-                width: result.width,
-                height: result.height,
-                size: result.bytes,
-                format: result.format
-              }
-            },
-            timestamp: new Date().toISOString()
-          });
-        }
+        res.status(201).json({
+          success: true,
+          message: 'Profile image uploaded successfully',
+          data: {
+            cloudinary_id: result.public_id,
+            url: result.secure_url,
+            width: result.width,
+            height: result.height,
+            size: result.bytes,
+            format: result.format
+          },
+          timestamp: new Date().toISOString()
+        });
       }
     );
 

@@ -24,10 +24,10 @@ router.put('/:id', userController.updateUser);
 // Delete user
 router.delete('/:id', userController.deleteUser);
 
+// Upload profile image
+router.post('/upload-profile-image', upload.single('image'), userController.uploadProfileImage);
+
 // Change user status
 router.patch('/:id/status', userController.changeUserStatus);
-
-// Upload profile image
-router.post('/:id/profile-image', upload.single('image'), userController.uploadProfileImage);
 
 module.exports = router;
