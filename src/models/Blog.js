@@ -29,6 +29,8 @@ class Blog {
     this.allow_comments = data.allow_comments;
     this.show_on_homepage = data.show_on_homepage;
     this.is_sticky = data.is_sticky;
+    this.author_name = data.author_name;
+    this.author_email = data.author_email;
   }
 }
 

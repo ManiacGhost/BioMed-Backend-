@@ -220,6 +220,8 @@ exports.createBlog = async (req, res) => {
       slug,
       category_id,
       author_id,
+      author_name,
+      author_email,
       keywords,
       content,
       thumbnail_url,
@@ -253,19 +255,19 @@ exports.createBlog = async (req, res) => {
 
     const query = `
       INSERT INTO blogs_cw (
-        title, slug, category_id, author_id, keywords, content, thumbnail_url,
+        title, slug, category_id, author_id, author_name, author_email, keywords, content, thumbnail_url,
         banner_url, is_popular, status, short_description, reading_time,
         image_alt_text, image_caption, publish_date, visibility, seo_title,
         seo_description, focus_keyword, canonical_url, meta_robots,
         allow_comments, show_on_homepage, is_sticky, created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW(), NOW()
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW()
       ) RETURNING *
     `;
 
     const values = [
-      title, slug, category_id, author_id, keywords, content, thumbnail_url,
+      title, slug, category_id, author_id, author_name, author_email, keywords, content, thumbnail_url,
       banner_url, is_popular, status, short_description, reading_time,
       image_alt_text, image_caption, publish_date, visibility, seo_title,
       seo_description, focus_keyword, canonical_url, meta_robots,
@@ -308,7 +310,7 @@ exports.updateBlog = async (req, res) => {
 
     // Build dynamic UPDATE query
     const allowedFields = [
-      'title', 'slug', 'category_id', 'author_id', 'keywords', 'content',
+      'title', 'slug', 'category_id', 'author_id', 'author_name', 'author_email', 'keywords', 'content',
       'thumbnail_url', 'banner_url', 'is_popular', 'status', 'short_description',
       'reading_time', 'image_alt_text', 'image_caption', 'publish_date',
       'visibility', 'seo_title', 'seo_description', 'focus_keyword',
