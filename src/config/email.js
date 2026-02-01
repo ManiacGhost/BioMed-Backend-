@@ -128,9 +128,101 @@ const sendUnsubscribeEmail = async (email) => {
   }
 };
 
+// Send contact form confirmation email to user
+const sendContactConfirmationEmail = async (email, fullName) => {
+  try {
+    const mailOptions = {
+      from: process.env.BREVO_FROM_EMAIL,
+      to: email,
+      subject: 'We Received Your Message - BioMed Support',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Thank You for Contacting BioMed!</h2>
+          <p>Dear ${fullName},</p>
+          <p>We have received your message and appreciate you reaching out to us.</p>
+          <p>Our support team will review your inquiry and get back to you as soon as possible.</p>
+          <p>In the meantime, if you have any urgent questions, please feel free to contact us at:</p>
+          <p style="margin: 20px 0;">
+            <strong>Email:</strong> ${process.env.SUPPORT_EMAIL}<br>
+            <strong>Phone:</strong> ${process.env.SUPPORT_PHONE}
+          </p>
+          <hr style="margin: 30px 0;">
+          <p style="font-size: 12px; color: #666;">
+            BioMed Support Team | Medical Education Platform
+          </p>
+        </div>
+      `,
+      text: `Thank you for contacting BioMed!\n\nWe have received your message and will get back to you soon.\n\nSupport Team`
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Contact confirmation email sent:', result.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending contact confirmation email:', error);
+    throw error;
+  }
+};
+
+// Send contact form notification email to admin
+const sendContactAdminNotificationEmail = async (contactData) => {
+  try {
+    const mailOptions = {
+      from: process.env.BREVO_FROM_EMAIL,
+      to: process.env.ADMIN_EMAIL,
+      subject: `New Contact Form Submission from ${contactData.full_name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>New Contact Form Submission</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px; font-weight: bold; width: 30%;">Name:</td>
+              <td style="padding: 10px;">${contactData.full_name}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px; font-weight: bold;">Email:</td>
+              <td style="padding: 10px;"><a href="mailto:${contactData.email}">${contactData.email}</a></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px; font-weight: bold;">Phone:</td>
+              <td style="padding: 10px;">${contactData.country_code || ''} ${contactData.phone_number || 'Not provided'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px; font-weight: bold;">Topic:</td>
+              <td style="padding: 10px;">${contactData.interest_topic || 'Not specified'}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 10px; font-weight: bold;">Message:</td>
+              <td style="padding: 10px; white-space: pre-wrap;">${contactData.message}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; font-weight: bold;">Submitted:</td>
+              <td style="padding: 10px;">${new Date().toLocaleString()}</td>
+            </tr>
+          </table>
+          <hr style="margin: 30px 0;">
+          <p style="font-size: 12px; color: #666;">
+            This is an automated notification. Please log into the admin panel to manage this inquiry.
+          </p>
+        </div>
+      `,
+      text: `New Contact Form Submission\n\nName: ${contactData.full_name}\nEmail: ${contactData.email}\nPhone: ${contactData.country_code} ${contactData.phone_number}\nTopic: ${contactData.interest_topic}\nMessage: ${contactData.message}`
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Admin notification email sent:', result.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending admin notification email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendConfirmationEmail,
   sendWelcomeEmail,
   sendUnsubscribeEmail,
+  sendContactConfirmationEmail,
+  sendContactAdminNotificationEmail,
   transporter
 };
