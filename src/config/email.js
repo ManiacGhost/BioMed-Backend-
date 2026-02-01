@@ -29,6 +29,9 @@ const sendConfirmationEmail = async (email, confirmationLink) => {
       subject: 'Welcome to BioMed Newsletter - Confirm Your Subscription',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1769959139/logo_l2ja8n.png" alt="BioMed Logo" style="max-width: 150px; height: auto;">
+          </div>
           <h2>Welcome to BioMed Newsletter!</h2>
           <p>Thank you for subscribing to our newsletter. We're excited to have you on board!</p>
           <p>Please confirm your email address by clicking the button below:</p>
@@ -70,6 +73,9 @@ const sendWelcomeEmail = async (email) => {
       subject: 'You\'re All Set! Welcome to BioMed Newsletter',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1769959139/logo_l2ja8n.png" alt="BioMed Logo" style="max-width: 150px; height: auto;">
+          </div>
           <h2>Welcome to BioMed!</h2>
           <p>Your email has been confirmed. You're now subscribed to our newsletter.</p>
           <p>You'll receive:</p>
@@ -107,6 +113,9 @@ const sendUnsubscribeEmail = async (email) => {
       subject: 'You\'ve Been Unsubscribed from BioMed Newsletter',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1769959139/logo_l2ja8n.png" alt="BioMed Logo" style="max-width: 150px; height: auto;">
+          </div>
           <h2>Unsubscribe Confirmation</h2>
           <p>You have been unsubscribed from the BioMed Newsletter.</p>
           <p>We're sorry to see you go! If you change your mind, you can resubscribe anytime.</p>
@@ -137,6 +146,9 @@ const sendContactConfirmationEmail = async (email, fullName) => {
       subject: 'We Received Your Message - BioMed Support',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1769959139/logo_l2ja8n.png" alt="BioMed Logo" style="max-width: 150px; height: auto;">
+          </div>
           <h2>Thank You for Contacting BioMed!</h2>
           <p>Dear ${fullName},</p>
           <p>We have received your message and appreciate you reaching out to us.</p>
@@ -173,6 +185,9 @@ const sendContactAdminNotificationEmail = async (contactData) => {
       subject: `New Contact Form Submission from ${contactData.full_name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="https://res.cloudinary.com/dwpkrvrfk/image/upload/v1769959139/logo_l2ja8n.png" alt="BioMed Logo" style="max-width: 150px; height: auto;">
+          </div>
           <h2>New Contact Form Submission</h2>
           <table style="width: 100%; border-collapse: collapse;">
             <tr style="border-bottom: 1px solid #ddd;">
