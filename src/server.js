@@ -17,6 +17,7 @@ app.use(`/api/${API_VERSION}/courses`, require('./routes/courses'));
 app.use(`/api/${API_VERSION}/blogs`, require('./routes/blogs'));
 app.use(`/api/${API_VERSION}/images`, require('./routes/images'));
 app.use(`/api/${API_VERSION}/users`, require('./routes/users'));
+app.use(`/api/${API_VERSION}/newsletter`, require('./routes/newsletter'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
