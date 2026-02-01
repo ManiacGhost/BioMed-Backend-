@@ -1,7 +1,7 @@
--- Migration: Create newsletter_subscribers table
+-- Migration: Create newsletter_subscribers_biomed table
 -- Description: Store email subscribers for newsletter
 
-CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+CREATE TABLE IF NOT EXISTS newsletter_subscribers_biomed (
     id BIGSERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
 );
 
 -- Create index on email for faster lookups
-CREATE INDEX IF NOT EXISTS idx_newsletter_subscribers_email ON newsletter_subscribers(email);
-CREATE INDEX IF NOT EXISTS idx_newsletter_subscribers_status ON newsletter_subscribers(status);
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscribers_biomed_email ON newsletter_subscribers_biomed(email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscribers_biomed_status ON newsletter_subscribers_biomed(status);

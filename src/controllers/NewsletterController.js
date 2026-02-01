@@ -6,7 +6,7 @@ const crypto = require('crypto');
 // Get all subscribers
 exports.getAllSubscribers = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM newsletter_subscribers ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM newsletter_subscribers_biomed ORDER BY created_at DESC');
     const subscribers = result.rows.map(sub => new NewsletterSubscriber(sub));
     
     res.status(200).json({
@@ -30,7 +30,7 @@ exports.getAllSubscribers = async (req, res) => {
 exports.getSubscriberByEmail = async (req, res) => {
   try {
     const { email } = req.params;
-    const result = await pool.query('SELECT * FROM newsletter_subscribers WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM newsletter_subscribers_biomed WHERE email = $1', [email]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -72,7 +72,7 @@ exports.subscribe = async (req, res) => {
 
     // Insert new subscriber with 'active' status
     const result = await pool.query(
-      `INSERT INTO newsletter_subscribers (email, status, created_at)
+      `INSERT INTO newsletter_subscribers_biomed (email, status, created_at)
        VALUES ($1, 'active', NOW())
        RETURNING *`,
       [email]
@@ -129,7 +129,7 @@ exports.confirmSubscription = async (req, res) => {
 
     // Check if subscriber exists
     const result = await pool.query(
-      `SELECT * FROM newsletter_subscribers 
+      `SELECT * FROM newsletter_subscribers_biomed 
        WHERE email = $1`,
       [email]
     );
@@ -175,7 +175,7 @@ exports.unsubscribe = async (req, res) => {
 
     // Update subscriber status to unsubscribed
     const result = await pool.query(
-      `UPDATE newsletter_subscribers 
+      `UPDATE newsletter_subscribers_biomed 
        SET status = 'unsubscribed'
        WHERE email = $1
        RETURNING *`,
@@ -218,15 +218,15 @@ exports.unsubscribe = async (req, res) => {
 // Get subscriber statistics
 exports.getStatistics = async (req, res) => {
   try {
-    const totalResult = await pool.query('SELECT COUNT(*) FROM newsletter_subscribers');
+    const totalResult = await pool.query('SELECT COUNT(*) FROM newsletter_subscribers_biomed');
     const activeResult = await pool.query(
-      "SELECT COUNT(*) FROM newsletter_subscribers WHERE status = 'active'"
+      "SELECT COUNT(*) FROM newsletter_subscribers_biomed WHERE status = 'active'"
     );
     const pendingResult = await pool.query(
-      "SELECT COUNT(*) FROM newsletter_subscribers WHERE status = 'pending'"
+      "SELECT COUNT(*) FROM newsletter_subscribers_biomed WHERE status = 'pending'"
     );
     const unsubscribedResult = await pool.query(
-      "SELECT COUNT(*) FROM newsletter_subscribers WHERE status = 'unsubscribed'"
+      "SELECT COUNT(*) FROM newsletter_subscribers_biomed WHERE status = 'unsubscribed'"
     );
 
     res.status(200).json({
