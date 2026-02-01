@@ -37,6 +37,8 @@ app.use((req, res) => {
   });
 });
 
+app.use(cors());
+
 app.listen(PORT, () => {
   console.log(`Medical Platform API running on http://localhost:${PORT}`);
   console.log(`API Version: ${API_VERSION}`);

@@ -4,7 +4,7 @@ const pool = require('../config/database');
 // Get all blogs
 exports.getAllBlogs = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM blogs_cw ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM blogs_biomed ORDER BY created_at DESC');
     const blogs = result.rows.map(blog => new Blog(blog));
     
     res.status(200).json({
@@ -28,7 +28,7 @@ exports.getAllBlogs = async (req, res) => {
 exports.getBlogById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM blogs_cw WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -58,7 +58,7 @@ exports.getBlogById = async (req, res) => {
 exports.getBlogBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const result = await pool.query('SELECT * FROM blogs_cw WHERE slug = $1', [slug]);
+    const result = await pool.query('SELECT * FROM blogs_biomed WHERE slug = $1', [slug]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -99,7 +99,7 @@ exports.getFilteredBlogs = async (req, res) => {
       search
     } = req.query;
 
-    let query = 'SELECT * FROM blogs_cw WHERE 1=1';
+    let query = 'SELECT * FROM blogs_biomed WHERE 1=1';
     let values = [];
     let valueIndex = 1;
 
@@ -152,7 +152,7 @@ exports.getFilteredBlogs = async (req, res) => {
     const blogs = result.rows.map(blog => new Blog(blog));
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM blogs_cw WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) FROM blogs_biomed WHERE 1=1';
     let countValues = [];
     let countIndex = 1;
 
@@ -254,7 +254,7 @@ exports.createBlog = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO blogs_cw (
+      INSERT INTO blogs_biomed (
         title, slug, category_id, author_id, author_name, author_email, keywords, content, thumbnail_url,
         banner_url, is_popular, status, short_description, reading_time,
         image_alt_text, image_caption, publish_date, visibility, seo_title,
@@ -299,7 +299,7 @@ exports.updateBlog = async (req, res) => {
     const updates = req.body;
 
     // Check if blog exists
-    const existingBlog = await pool.query('SELECT * FROM blogs_cw WHERE id = $1', [id]);
+    const existingBlog = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
     if (existingBlog.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -341,7 +341,7 @@ exports.updateBlog = async (req, res) => {
     updateFields.push(`updated_at = NOW()`);
     updateValues.push(id);
 
-    const query = `UPDATE blogs_cw SET ${updateFields.join(', ')} WHERE id = $${valueIndex} RETURNING *`;
+    const query = `UPDATE blogs_biomed SET ${updateFields.join(', ')} WHERE id = $${valueIndex} RETURNING *`;
 
     const result = await pool.query(query, updateValues);
 
@@ -367,7 +367,7 @@ exports.deleteBlog = async (req, res) => {
     const { id } = req.params;
 
     // Check if blog exists
-    const existingBlog = await pool.query('SELECT * FROM blogs_cw WHERE id = $1', [id]);
+    const existingBlog = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
     if (existingBlog.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -376,7 +376,7 @@ exports.deleteBlog = async (req, res) => {
       });
     }
 
-    await pool.query('DELETE FROM blogs_cw WHERE id = $1', [id]);
+    await pool.query('DELETE FROM blogs_biomed WHERE id = $1', [id]);
 
     res.status(200).json({
       success: true,
