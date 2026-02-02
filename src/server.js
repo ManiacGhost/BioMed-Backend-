@@ -1,4 +1,6 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+require('dotenv').config({
+  path: '/home/u309740424/domains/darkseagreen-pheasant-774973.hostingersite.com/public_html/.env'
+});
 
 const fs = require('fs');
 const path = require('path');
