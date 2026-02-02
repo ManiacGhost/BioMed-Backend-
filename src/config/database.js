@@ -14,26 +14,26 @@ const logToFile = (msg) => {
   }
 };
 console.log('[Database] Initializing connection pool...');
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Log database connection attempts
+logToFile(`Database pool created for host: ${process.env.DB_HOST}`);
 console.log({
   host: process.env.DB_HOST,
   user: process.env.DB_USERNAME,
   db: process.env.DB_DATABASE,
   port: process.env.DB_PORT
 });
-const pool = mysql.createPool({
-  host: '82.25.121.170',        // same as panel
-  user: 'u309740424_lmsmaindb',
-  password: 'Pdig##123',
-  database: 'u309740424_lmsmaindb',
-  port: 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  family: 4 // IMPORTANT on Hostinger
-});
-
-// Log database connection attempts
-logToFile(`Database pool created for host: ${process.env.DB_HOST}`);
 console.log(`[Database] Initialized pool for ${process.env.DB_HOST}`);
 
 pool.on('error', (err) => {
