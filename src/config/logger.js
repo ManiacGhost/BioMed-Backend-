@@ -4,8 +4,13 @@ const path = require('path');
 const logDir = path.join(__dirname, '../logs');
 
 // Create logs directory if it doesn't exist
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
+try {
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+    console.log(`Logs directory created at ${logDir}`);
+  }
+} catch (err) {
+  console.error(`Failed to create logs directory: ${err.message}`);
 }
 
 const errorLogFile = path.join(logDir, 'error.log');
@@ -16,17 +21,25 @@ function formatLog(level, message) {
   return `[${new Date().toISOString()}] [${level}] ${message}`;
 }
 
+function safeAppendFile(filePath, content) {
+  try {
+    fs.appendFileSync(filePath, content + '\n', { encoding: 'utf8' });
+  } catch (err) {
+    console.error(`Failed to write to ${filePath}: ${err.message}`);
+  }
+}
+
 const logger = {
   error: (message, error = null) => {
     const log = error ? `${message}\n${error.stack || error}` : message;
     const formatted = formatLog('ERROR', log);
-    fs.appendFileSync(errorLogFile, formatted + '\n');
+    safeAppendFile(errorLogFile, formatted);
     console.error(formatted);
   },
 
   info: (message) => {
     const formatted = formatLog('INFO', message);
-    fs.appendFileSync(infoLogFile, formatted + '\n');
+    safeAppendFile(infoLogFile, formatted);
     console.log(formatted);
   },
 
@@ -35,12 +48,12 @@ const logger = {
     if (query) log += `\nQuery: ${query}`;
     if (params) log += `\nParams: ${JSON.stringify(params)}`;
     const formatted = formatLog('DATABASE', log);
-    fs.appendFileSync(databaseLogFile, formatted + '\n');
+    safeAppendFile(databaseLogFile, formatted);
   },
 
   warn: (message) => {
     const formatted = formatLog('WARN', message);
-    fs.appendFileSync(infoLogFile, formatted + '\n');
+    safeAppendFile(infoLogFile, formatted);
     console.warn(formatted);
   }
 };

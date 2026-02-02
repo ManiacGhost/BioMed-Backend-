@@ -1,6 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const logger = require('./config/logger');
 
 const logFile = path.join(__dirname, 'server.log');
 
@@ -58,10 +59,10 @@ app.use((req, res) => {
 app.use(cors());
 
 app.listen(PORT, () => {
-  logToFile(`Server started on port ${PORT}`);
-  logToFile(`API Version: ${API_VERSION}`);
-  logToFile(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`Medical Platform API running on http://localhost:${PORT}`);
-  console.log(`API Version: ${API_VERSION}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+  const startupMsg = `Server started on port ${PORT}`;
+  logToFile(startupMsg);
+  logger.info(startupMsg);
+  logger.info(`API Version: ${API_VERSION}`);
+  logger.info(`Environment: ${process.env.NODE_ENV}`);
+  logger.info(`Logs directory: ${path.join(__dirname, 'logs')}`);
 });
