@@ -1,16 +1,32 @@
 const fs = require('fs');
 const path = require('path');
 
-const logDir = path.join(__dirname, '../logs');
+// Use absolute path for logs
+const logDir = path.join(process.cwd(), 'logs');
 
-// Create logs directory if it doesn't exist
+console.log(`[Logger] Log directory path: ${logDir}`);
+
+// Create logs directory synchronously
 try {
   if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-    console.log(`Logs directory created at ${logDir}`);
+    fs.mkdirSync(logDir, { recursive: true, mode: 0o755 });
+    console.log(`[Logger] Created logs directory at ${logDir}`);
+  } else {
+    console.log(`[Logger] Logs directory already exists at ${logDir}`);
   }
 } catch (err) {
-  console.error(`Failed to create logs directory: ${err.message}`);
+  console.error(`[Logger] ERROR creating logs directory: ${err.message}`);
+  console.error(`[Logger] Stack: ${err.stack}`);
+}
+
+// Verify directory exists and is writable
+try {
+  if (fs.existsSync(logDir)) {
+    fs.accessSync(logDir, fs.constants.W_OK);
+    console.log(`[Logger] Logs directory is writable`);
+  }
+} catch (err) {
+  console.error(`[Logger] Cannot write to logs directory: ${err.message}`);
 }
 
 const errorLogFile = path.join(logDir, 'error.log');
@@ -23,9 +39,9 @@ function formatLog(level, message) {
 
 function safeAppendFile(filePath, content) {
   try {
-    fs.appendFileSync(filePath, content + '\n', { encoding: 'utf8' });
+    fs.appendFileSync(filePath, content + '\n', { encoding: 'utf8', flag: 'a' });
   } catch (err) {
-    console.error(`Failed to write to ${filePath}: ${err.message}`);
+    console.error(`[Logger] Failed to write to ${filePath}: ${err.message}`);
   }
 }
 

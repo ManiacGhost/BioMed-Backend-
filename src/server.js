@@ -1,7 +1,10 @@
 require('dotenv').config();
+
+// Initialize logger FIRST before anything else
+const logger = require('./config/logger');
+
 const fs = require('fs');
 const path = require('path');
-const logger = require('./config/logger');
 
 const logFile = path.join(__dirname, 'server.log');
 
