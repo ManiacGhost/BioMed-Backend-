@@ -14,19 +14,19 @@ const logToFile = (msg) => {
 };
 
 const pool = mysql.createPool({
-  host: "82.25.121.170",
-  user: "u309740424_lmsmaindb",
-  password: "Pdigi#123",
-  database: "u309740424_lmsmaindb",
-  port: "3306",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
 // Log database connection attempts
-logToFile(`Database pool created for host: 82.25.121.170`);
-console.log(`[Database] Initialized pool for MySQL database`);
+logToFile(`Database pool created for host: ${process.env.DB_HOST}`);
+console.log(`[Database] Initialized pool for ${process.env.DB_HOST}`);
 
 pool.on('error', (err) => {
   logToFile(`DATABASE ERROR: ${err.message}`);
