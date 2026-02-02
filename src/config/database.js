@@ -14,6 +14,12 @@ const logToFile = (msg) => {
   }
 };
 console.log('[Database] Initializing connection pool...');
+console.log({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USERNAME,
+  db: process.env.DB_DATABASE,
+  port: process.env.DB_PORT
+});
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USERNAME,
