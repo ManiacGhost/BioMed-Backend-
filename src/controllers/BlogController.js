@@ -4,14 +4,17 @@ const pool = require('../config/database');
 // Get all blogs
 exports.getAllBlogs = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM blogs_biomed ORDER BY created_at DESC');
-    const blogs = result.rows.map(blog => new Blog(blog));
+    const connection = await pool.getConnection();
+    const [blogs] = await connection.query('SELECT * FROM blogs_biomed ORDER BY created_at DESC');
+    await connection.release();
+    
+    const blogData = blogs.map(blog => new Blog(blog));
     
     res.status(200).json({
       success: true,
       message: 'Blogs retrieved successfully',
-      data: blogs,
-      count: blogs.length,
+      data: blogData,
+      count: blogData.length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -27,10 +30,12 @@ exports.getAllBlogs = async (req, res) => {
 // Get blog by ID
 exports.getBlogById = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
+    const [result] = await connection.query('SELECT * FROM blogs_biomed WHERE id = ?', [id]);
+    await connection.release();
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -41,7 +46,7 @@ exports.getBlogById = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Blog retrieved successfully',
-      data: new Blog(result.rows[0]),
+      data: new Blog(result[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -57,10 +62,12 @@ exports.getBlogById = async (req, res) => {
 // Get blog by slug
 exports.getBlogBySlug = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { slug } = req.params;
-    const result = await pool.query('SELECT * FROM blogs_biomed WHERE slug = $1', [slug]);
+    const [result] = await connection.query('SELECT * FROM blogs_biomed WHERE slug = ?', [slug]);
+    await connection.release();
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -71,7 +78,7 @@ exports.getBlogBySlug = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Blog retrieved successfully',
-      data: new Blog(result.rows[0]),
+      data: new Blog(result[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -87,6 +94,7 @@ exports.getBlogBySlug = async (req, res) => {
 // Get blogs with filters and pagination
 exports.getFilteredBlogs = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { 
       page = 1, 
       limit = 10, 
@@ -100,100 +108,80 @@ exports.getFilteredBlogs = async (req, res) => {
     } = req.query;
 
     let query = 'SELECT * FROM blogs_biomed WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as count FROM blogs_biomed WHERE 1=1';
     let values = [];
-    let valueIndex = 1;
 
     // Build dynamic WHERE clause
     if (category_id) {
-      query += ` AND category_id = $${valueIndex}`;
+      query += ' AND category_id = ?';
+      countQuery += ' AND category_id = ?';
       values.push(parseInt(category_id));
-      valueIndex++;
     }
     if (author_id) {
-      query += ` AND author_id = $${valueIndex}`;
+      query += ' AND author_id = ?';
+      countQuery += ' AND author_id = ?';
       values.push(parseInt(author_id));
-      valueIndex++;
     }
     if (status) {
-      query += ` AND status = $${valueIndex}`;
+      query += ' AND status = ?';
+      countQuery += ' AND status = ?';
       values.push(status);
-      valueIndex++;
     }
     if (visibility) {
-      query += ` AND visibility = $${valueIndex}`;
+      query += ' AND visibility = ?';
+      countQuery += ' AND visibility = ?';
       values.push(visibility);
-      valueIndex++;
     }
     if (is_popular !== undefined) {
-      query += ` AND is_popular = $${valueIndex}`;
+      query += ' AND is_popular = ?';
+      countQuery += ' AND is_popular = ?';
       values.push(parseInt(is_popular));
-      valueIndex++;
     }
     if (show_on_homepage !== undefined) {
-      query += ` AND show_on_homepage = $${valueIndex}`;
+      query += ' AND show_on_homepage = ?';
+      countQuery += ' AND show_on_homepage = ?';
       values.push(parseInt(show_on_homepage));
-      valueIndex++;
     }
     if (search) {
-      query += ` AND (title ILIKE $${valueIndex} OR short_description ILIKE $${valueIndex})`;
+      query += ' AND (title LIKE ? OR short_description LIKE ?)';
+      countQuery += ' AND (title LIKE ? OR short_description LIKE ?)';
       values.push(`%${search}%`);
       values.push(`%${search}%`);
-      valueIndex += 2;
     }
 
     query += ' ORDER BY created_at DESC';
 
     // Add pagination
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    query += ` LIMIT $${valueIndex} OFFSET $${valueIndex + 1}`;
+    query += ' LIMIT ? OFFSET ?';
     values.push(parseInt(limit), offset);
 
-    const result = await pool.query(query, values);
-    const blogs = result.rows.map(blog => new Blog(blog));
-
-    // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM blogs_biomed WHERE 1=1';
+    const [blogs] = await connection.query(query, values);
+    
+    // Get total count - rebuild count query values
     let countValues = [];
-    let countIndex = 1;
-
-    if (category_id) {
-      countQuery += ` AND category_id = $${countIndex}`;
-      countValues.push(parseInt(category_id));
-      countIndex++;
-    }
-    if (author_id) {
-      countQuery += ` AND author_id = $${countIndex}`;
-      countValues.push(parseInt(author_id));
-      countIndex++;
-    }
-    if (status) {
-      countQuery += ` AND status = $${countIndex}`;
-      countValues.push(status);
-      countIndex++;
-    }
-    if (visibility) {
-      countQuery += ` AND visibility = $${countIndex}`;
-      countValues.push(visibility);
-      countIndex++;
-    }
-    if (is_popular !== undefined) {
-      countQuery += ` AND is_popular = $${countIndex}`;
-      countValues.push(parseInt(is_popular));
-      countIndex++;
-    }
-    if (show_on_homepage !== undefined) {
-      countQuery += ` AND show_on_homepage = $${countIndex}`;
-      countValues.push(parseInt(show_on_homepage));
-      countIndex++;
+    if (category_id) countValues.push(parseInt(category_id));
+    if (author_id) countValues.push(parseInt(author_id));
+    if (status) countValues.push(status);
+    if (visibility) countValues.push(visibility);
+    if (is_popular !== undefined) countValues.push(parseInt(is_popular));
+    if (show_on_homepage !== undefined) countValues.push(parseInt(show_on_homepage));
+    if (search) {
+      countValues.push(`%${search}%`);
+      countValues.push(`%${search}%`);
     }
 
-    const countResult = await pool.query(countQuery, countValues);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const [countResult] = await connection.query(countQuery, countValues);
+    const totalCount = countResult[0].count;
+
+    await connection.release();
+
+    const blogData = blogs.map(blog => new Blog(blog));
 
     res.status(200).json({
       success: true,
       message: 'Blogs retrieved successfully',
-      data: blogs,
+      data: blogData,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -215,6 +203,7 @@ exports.getFilteredBlogs = async (req, res) => {
 // Create a new blog
 exports.createBlog = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const {
       title,
       slug,
@@ -246,6 +235,7 @@ exports.createBlog = async (req, res) => {
 
     // Validate required fields
     if (!title || !content || !category_id || !author_id || !slug) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -259,11 +249,8 @@ exports.createBlog = async (req, res) => {
         banner_url, is_popular, status, short_description, reading_time,
         image_alt_text, image_caption, publish_date, visibility, seo_title,
         seo_description, focus_keyword, canonical_url, meta_robots,
-        allow_comments, show_on_homepage, is_sticky, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW(), NOW()
-      ) RETURNING *
+        allow_comments, show_on_homepage, is_sticky
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -274,12 +261,16 @@ exports.createBlog = async (req, res) => {
       allow_comments, show_on_homepage, is_sticky
     ];
 
-    const result = await pool.query(query, values);
+    const [result] = await connection.query(query, values);
+
+    // Fetch created blog
+    const [createdBlog] = await connection.query('SELECT * FROM blogs_biomed WHERE id = ?', [result.insertId]);
+    await connection.release();
 
     res.status(201).json({
       success: true,
       message: 'Blog created successfully',
-      data: new Blog(result.rows[0]),
+      data: new Blog(createdBlog[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -295,12 +286,14 @@ exports.createBlog = async (req, res) => {
 // Update blog
 exports.updateBlog = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
     const updates = req.body;
 
     // Check if blog exists
-    const existingBlog = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
-    if (existingBlog.rows.length === 0) {
+    const [existingBlog] = await connection.query('SELECT * FROM blogs_biomed WHERE id = ?', [id]);
+    if (existingBlog.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -320,17 +313,16 @@ exports.updateBlog = async (req, res) => {
 
     const updateFields = [];
     const updateValues = [];
-    let valueIndex = 1;
 
     for (const field of allowedFields) {
       if (field in updates) {
-        updateFields.push(`${field} = $${valueIndex}`);
+        updateFields.push(`${field} = ?`);
         updateValues.push(updates[field]);
-        valueIndex++;
       }
     }
 
     if (updateFields.length === 0) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -338,17 +330,21 @@ exports.updateBlog = async (req, res) => {
       });
     }
 
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
     updateValues.push(id);
 
-    const query = `UPDATE blogs_biomed SET ${updateFields.join(', ')} WHERE id = $${valueIndex} RETURNING *`;
+    const query = `UPDATE blogs_biomed SET ${updateFields.join(', ')} WHERE id = ?`;
 
-    const result = await pool.query(query, updateValues);
+    await connection.query(query, updateValues);
+
+    // Fetch updated blog
+    const [updatedBlog] = await connection.query('SELECT * FROM blogs_biomed WHERE id = ?', [id]);
+    await connection.release();
 
     res.status(200).json({
       success: true,
       message: 'Blog updated successfully',
-      data: new Blog(result.rows[0]),
+      data: new Blog(updatedBlog[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -364,11 +360,13 @@ exports.updateBlog = async (req, res) => {
 // Delete blog
 exports.deleteBlog = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
     // Check if blog exists
-    const existingBlog = await pool.query('SELECT * FROM blogs_biomed WHERE id = $1', [id]);
-    if (existingBlog.rows.length === 0) {
+    const [existingBlog] = await connection.query('SELECT * FROM blogs_biomed WHERE id = ?', [id]);
+    if (existingBlog.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -376,7 +374,8 @@ exports.deleteBlog = async (req, res) => {
       });
     }
 
-    await pool.query('DELETE FROM blogs_biomed WHERE id = $1', [id]);
+    await connection.query('DELETE FROM blogs_biomed WHERE id = ?', [id]);
+    await connection.release();
 
     res.status(200).json({
       success: true,

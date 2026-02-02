@@ -1,18 +1,18 @@
 -- Create images table for storing image metadata
 CREATE TABLE IF NOT EXISTS images (
-  id UUID PRIMARY KEY,
+  id CHAR(36) PRIMARY KEY,
   cloudinary_id VARCHAR(255) UNIQUE NOT NULL,
   url TEXT,
   secure_url TEXT NOT NULL,
   public_id VARCHAR(255) NOT NULL,
-  width INTEGER,
-  height INTEGER,
+  width INT,
+  height INT,
   format VARCHAR(50),
   size BIGINT,
   folder VARCHAR(255),
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Create index on cloudinary_id for faster lookups

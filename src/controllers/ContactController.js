@@ -2,9 +2,16 @@ const ContactMessage = require('../models/ContactMessage');
 const pool = require('../config/database');
 const { sendContactConfirmationEmail, sendContactAdminNotificationEmail } = require('../config/email');
 
+// Helper function to validate email
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 // Submit contact form
 exports.submitContact = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const {
       full_name,
       email,
@@ -17,6 +24,7 @@ exports.submitContact = async (req, res) => {
 
     // Validate required fields
     if (!full_name || !email || !message) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -26,6 +34,7 @@ exports.submitContact = async (req, res) => {
 
     // Validate email format
     if (!isValidEmail(email)) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -35,6 +44,7 @@ exports.submitContact = async (req, res) => {
 
     // Validate terms agreement
     if (agreed_to_terms !== 'true' && agreed_to_terms !== true) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -43,15 +53,21 @@ exports.submitContact = async (req, res) => {
     }
 
     // Insert contact message
-    const result = await pool.query(
+    const [result] = await connection.query(
       `INSERT INTO contact_messages 
-       (full_name, email, country_code, phone_number, interest_topic, message, agreed_to_terms, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', NOW()::text)
-       RETURNING *`,
+       (full_name, email, country_code, phone_number, interest_topic, message, agreed_to_terms, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'new')`,
       [full_name, email, country_code, phone_number, interest_topic, message, agreed_to_terms]
     );
 
-    const contactMessage = new ContactMessage(result.rows[0]);
+    // Fetch created message
+    const [createdMessage] = await connection.query(
+      'SELECT * FROM contact_messages WHERE id = ?',
+      [result.insertId]
+    );
+
+    await connection.release();
+    const contactMessage = new ContactMessage(createdMessage[0]);
 
     // Send confirmation email to user
     try {
@@ -93,44 +109,42 @@ exports.submitContact = async (req, res) => {
 // Get all contact messages (admin)
 exports.getAllMessages = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { page = 1, limit = 10, status } = req.query;
 
     let query = 'SELECT * FROM contact_messages WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as count FROM contact_messages WHERE 1=1';
     let values = [];
-    let valueIndex = 1;
 
     if (status) {
-      query += ` AND status = $${valueIndex}`;
+      query += ' AND status = ?';
+      countQuery += ' AND status = ?';
       values.push(status);
-      valueIndex++;
     }
 
     query += ' ORDER BY created_at DESC';
 
     // Add pagination
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    query += ` LIMIT $${valueIndex} OFFSET $${valueIndex + 1}`;
+    query += ' LIMIT ? OFFSET ?';
     values.push(parseInt(limit), offset);
 
-    const result = await pool.query(query, values);
-    const messages = result.rows.map(msg => new ContactMessage(msg));
+    const [messages] = await connection.query(query, values);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM contact_messages WHERE 1=1';
     let countValues = [];
+    if (status) countValues.push(status);
+    const [countResult] = await connection.query(countQuery, countValues);
+    const totalCount = countResult[0].count;
 
-    if (status) {
-      countQuery += ` AND status = $1`;
-      countValues.push(status);
-    }
+    await connection.release();
 
-    const countResult = await pool.query(countQuery, countValues);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const messageData = messages.map(msg => new ContactMessage(msg));
 
     res.status(200).json({
       success: true,
       message: 'Messages retrieved successfully',
-      data: messages,
+      data: messageData,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -152,10 +166,12 @@ exports.getAllMessages = async (req, res) => {
 // Get contact message by ID
 exports.getMessageById = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM contact_messages WHERE id = $1', [id]);
+    const [result] = await connection.query('SELECT * FROM contact_messages WHERE id = ?', [id]);
+    await connection.release();
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -166,7 +182,7 @@ exports.getMessageById = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Message retrieved successfully',
-      data: new ContactMessage(result.rows[0]),
+      data: new ContactMessage(result[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -182,10 +198,12 @@ exports.getMessageById = async (req, res) => {
 // Update message status
 exports.updateMessageStatus = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
     const { status } = req.body;
 
     if (!status) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -194,8 +212,9 @@ exports.updateMessageStatus = async (req, res) => {
     }
 
     // Check if message exists
-    const existingMessage = await pool.query('SELECT * FROM contact_messages WHERE id = $1', [id]);
-    if (existingMessage.rows.length === 0) {
+    const [existingMessage] = await connection.query('SELECT * FROM contact_messages WHERE id = ?', [id]);
+    if (existingMessage.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -203,15 +222,16 @@ exports.updateMessageStatus = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
-      'UPDATE contact_messages SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
+    await connection.query('UPDATE contact_messages SET status = ? WHERE id = ?', [status, id]);
+
+    // Fetch updated message
+    const [updatedMessage] = await connection.query('SELECT * FROM contact_messages WHERE id = ?', [id]);
+    await connection.release();
 
     res.status(200).json({
       success: true,
       message: 'Message status updated successfully',
-      data: new ContactMessage(result.rows[0]),
+      data: new ContactMessage(updatedMessage[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -227,11 +247,14 @@ exports.updateMessageStatus = async (req, res) => {
 // Delete contact message
 exports.deleteMessage = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
-    const result = await pool.query('DELETE FROM contact_messages WHERE id = $1 RETURNING *', [id]);
+    // Check if message exists
+    const [existingMessage] = await connection.query('SELECT * FROM contact_messages WHERE id = ?', [id]);
 
-    if (result.rows.length === 0) {
+    if (existingMessage.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -239,10 +262,13 @@ exports.deleteMessage = async (req, res) => {
       });
     }
 
+    await connection.query('DELETE FROM contact_messages WHERE id = ?', [id]);
+    await connection.release();
+
     res.status(200).json({
       success: true,
       message: 'Message deleted successfully',
-      data: new ContactMessage(result.rows[0]),
+      data: new ContactMessage(existingMessage[0]),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -258,19 +284,23 @@ exports.deleteMessage = async (req, res) => {
 // Get contact statistics
 exports.getStatistics = async (req, res) => {
   try {
-    const totalResult = await pool.query('SELECT COUNT(*) FROM contact_messages');
-    const newResult = await pool.query("SELECT COUNT(*) FROM contact_messages WHERE status = 'new'");
-    const respondedResult = await pool.query("SELECT COUNT(*) FROM contact_messages WHERE status = 'responded'");
-    const resolvedResult = await pool.query("SELECT COUNT(*) FROM contact_messages WHERE status = 'resolved'");
+    const connection = await pool.getConnection();
+    
+    const [totalResult] = await connection.query('SELECT COUNT(*) as count FROM contact_messages');
+    const [newResult] = await connection.query("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'new'");
+    const [respondedResult] = await connection.query("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'responded'");
+    const [resolvedResult] = await connection.query("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'resolved'");
+
+    await connection.release();
 
     res.status(200).json({
       success: true,
       message: 'Statistics retrieved successfully',
       data: {
-        total: parseInt(totalResult.rows[0].count),
-        new: parseInt(newResult.rows[0].count),
-        responded: parseInt(respondedResult.rows[0].count),
-        resolved: parseInt(resolvedResult.rows[0].count)
+        total: totalResult[0].count,
+        new: newResult[0].count,
+        responded: respondedResult[0].count,
+        resolved: resolvedResult[0].count
       },
       timestamp: new Date().toISOString()
     });
@@ -283,9 +313,3 @@ exports.getStatistics = async (req, res) => {
     });
   }
 };
-
-// Helper function to validate email
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}

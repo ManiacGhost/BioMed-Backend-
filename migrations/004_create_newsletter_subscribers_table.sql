@@ -2,9 +2,9 @@
 -- Description: Store email subscribers for newsletter
 
 CREATE TABLE IF NOT EXISTS newsletter_subscribers_biomed (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status varchar(50)
 );
 

@@ -33,29 +33,31 @@ exports.uploadImage = async (req, res) => {
           });
         }
 
+        let connection;
         try {
+          connection = await pool.getConnection();
+          
           // Save image metadata to database
           const imageId = uuidv4();
-          const query = `
-            INSERT INTO images (id, cloudinary_id, url, secure_url, public_id, width, height, format, size, folder, uploaded_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-            RETURNING *
-          `;
+          
+          await connection.query(
+            `INSERT INTO images (id, cloudinary_id, url, secure_url, public_id, width, height, format, size, folder)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              imageId,
+              result.public_id,
+              result.url,
+              result.secure_url,
+              result.public_id,
+              result.width,
+              result.height,
+              result.format,
+              result.bytes,
+              folder
+            ]
+          );
 
-          const values = [
-            imageId,
-            result.public_id,
-            result.url,
-            result.secure_url,
-            result.public_id,
-            result.width,
-            result.height,
-            result.format,
-            result.bytes,
-            folder
-          ];
-
-          const dbResult = await pool.query(query, values);
+          await connection.release();
 
           res.status(201).json({
             success: true,
@@ -74,6 +76,7 @@ exports.uploadImage = async (req, res) => {
             timestamp: new Date().toISOString()
           });
         } catch (dbError) {
+          if (connection) await connection.release();
           console.error('Database error:', dbError);
           // Image uploaded to Cloudinary but DB save failed
           res.status(201).json({
@@ -108,14 +111,17 @@ exports.uploadImage = async (req, res) => {
 // Get image by ID
 exports.getImage = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
-    const result = await pool.query(
-      'SELECT * FROM images WHERE id = $1',
+    const [result] = await connection.query(
+      'SELECT * FROM images WHERE id = ?',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    await connection.release();
+
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -123,7 +129,7 @@ exports.getImage = async (req, res) => {
       });
     }
 
-    const image = result.rows[0];
+    const image = result[0];
 
     res.status(200).json({
       success: true,
@@ -154,27 +160,32 @@ exports.getImage = async (req, res) => {
 // Get all images with pagination
 exports.getAllImages = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { page = 1, limit = 20, folder } = req.query;
     const offset = (page - 1) * limit;
 
     let query = 'SELECT * FROM images';
-    let countQuery = 'SELECT COUNT(*) FROM images';
-    const params = [];
+    let countQuery = 'SELECT COUNT(*) as count FROM images';
+    let params = [];
 
     if (folder) {
-      query += ' WHERE folder = $1';
-      countQuery += ' WHERE folder = $1';
+      query += ' WHERE folder = ?';
+      countQuery += ' WHERE folder = ?';
       params.push(folder);
     }
 
-    query += ' ORDER BY uploaded_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    query += ' ORDER BY uploaded_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), offset);
 
-    const [imagesResult, countResult] = await Promise.all([
-      pool.query(query, [...params, limit, offset]),
-      pool.query(countQuery, folder ? [folder] : [])
-    ]);
+    const [imagesResult] = await connection.query(query, params);
+    
+    let countParams = [];
+    if (folder) countParams.push(folder);
+    const [countResult] = await connection.query(countQuery, countParams);
 
-    const images = imagesResult.rows.map(img => ({
+    await connection.release();
+
+    const images = imagesResult.map(img => ({
       id: img.id,
       cloudinary_id: img.cloudinary_id,
       url: img.secure_url,
@@ -186,7 +197,7 @@ exports.getAllImages = async (req, res) => {
       uploaded_at: img.uploaded_at
     }));
 
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = countResult[0].count;
     const totalPages = Math.ceil(totalCount / limit);
 
     res.status(200).json({
@@ -214,15 +225,17 @@ exports.getAllImages = async (req, res) => {
 // Delete image
 exports.deleteImage = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
     // Get image from database
-    const result = await pool.query(
-      'SELECT cloudinary_id FROM images WHERE id = $1',
+    const [result] = await connection.query(
+      'SELECT cloudinary_id FROM images WHERE id = ?',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -230,13 +243,14 @@ exports.deleteImage = async (req, res) => {
       });
     }
 
-    const cloudinaryId = result.rows[0].cloudinary_id;
+    const cloudinaryId = result[0].cloudinary_id;
 
     // Delete from Cloudinary
     await cloudinary.uploader.destroy(cloudinaryId);
 
     // Delete from database
-    await pool.query('DELETE FROM images WHERE id = $1', [id]);
+    await connection.query('DELETE FROM images WHERE id = ?', [id]);
+    await connection.release();
 
     res.status(200).json({
       success: true,
@@ -260,14 +274,17 @@ exports.deleteImage = async (req, res) => {
 // Get image by Cloudinary ID
 exports.getImageByCloudinaryId = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { cloudinaryId } = req.params;
 
-    const result = await pool.query(
-      'SELECT * FROM images WHERE cloudinary_id = $1',
+    const [result] = await connection.query(
+      'SELECT * FROM images WHERE cloudinary_id = ?',
       [cloudinaryId]
     );
 
-    if (result.rows.length === 0) {
+    await connection.release();
+
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -275,7 +292,7 @@ exports.getImageByCloudinaryId = async (req, res) => {
       });
     }
 
-    const image = result.rows[0];
+    const image = result[0];
 
     res.status(200).json({
       success: true,

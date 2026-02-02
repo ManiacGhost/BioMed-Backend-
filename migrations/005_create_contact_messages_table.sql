@@ -2,7 +2,7 @@
 -- Description: Store contact form submissions
 
 CREATE TABLE IF NOT EXISTS contact_messages (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(150) NOT NULL,
     email VARCHAR(255) NOT NULL,
     country_code VARCHAR(10),      
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     interest_topic VARCHAR(150),   
     message VARCHAR(5000) NOT NULL, 
     agreed_to_terms VARCHAR(5) DEFAULT 'true',  
-    created_at VARCHAR(50) DEFAULT CURRENT_TIMESTAMP::text,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20)
 );
 

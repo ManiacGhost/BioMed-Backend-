@@ -1,6 +1,6 @@
 -- Create users_biomed table
 CREATE TABLE IF NOT EXISTS users_biomed (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
     -- Basic Info
     first_name VARCHAR(100) NOT NULL,
@@ -20,14 +20,15 @@ CREATE TABLE IF NOT EXISTS users_biomed (
     github_url TEXT,
 
     -- Role & Status
-    role TEXT NOT NULL DEFAULT 'STUDENT',
+    role VARCHAR(50) NOT NULL DEFAULT 'STUDENT',
     is_instructor BOOLEAN DEFAULT FALSE,
-    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
-        CHECK (status IN ('ACTIVE', 'INACTIVE')),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
 
     -- Audit
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
 -- Create indexes for better query performance

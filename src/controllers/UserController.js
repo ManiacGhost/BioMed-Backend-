@@ -16,6 +16,7 @@ const verifyPassword = (password, hash) => {
 // Add user
 exports.addUser = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const {
       first_name,
       last_name,
@@ -62,12 +63,13 @@ exports.addUser = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await pool.query(
-      'SELECT id FROM users_biomed WHERE email = $1 OR phone = $2',
+    const [existingUser] = await connection.query(
+      'SELECT id FROM users_biomed WHERE email = ? OR phone = ?',
       [email, phone]
     );
 
-    if (existingUser.rows.length > 0) {
+    if (existingUser.length > 0) {
+      await connection.release();
       return res.status(409).json({
         success: false,
         error: 'Conflict',
@@ -79,26 +81,28 @@ exports.addUser = async (req, res) => {
     const password_hash = hashPassword(password);
 
     // Insert user
-    const query = `
-      INSERT INTO users_biomed (
+    const [result] = await connection.query(
+      `INSERT INTO users_biomed (
         first_name, last_name, title, email, phone, password_hash,
         address, profile_image_url, biography, linkedin_url, github_url,
         role, is_instructor, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING id, first_name, last_name, title, email, phone, address,
-                profile_image_url, biography, linkedin_url, github_url,
-                role, is_instructor, status, created_at, updated_at
-    `;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        first_name, last_name, title, email, phone, password_hash,
+        address, profile_image_url, biography, linkedin_url, github_url,
+        role, is_instructor, status
+      ]
+    );
 
-    const values = [
-      first_name, last_name, title, email, phone, password_hash,
-      address, profile_image_url, biography, linkedin_url, github_url,
-      role, is_instructor, status
-    ];
+    // Fetch the created user
+    const [createdUser] = await connection.query(
+      'SELECT * FROM users_biomed WHERE id = ?',
+      [result.insertId]
+    );
 
-    const result = await pool.query(query, values);
-    const user = new User(result.rows[0]);
+    await connection.release();
+    const user = new User(createdUser[0]);
 
     res.status(201).json({
       success: true,
@@ -119,40 +123,41 @@ exports.addUser = async (req, res) => {
 // Get all users
 exports.getAllUsers = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { page = 1, limit = 20, role, status, is_instructor } = req.query;
     const offset = (page - 1) * limit;
 
     let query = 'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) FROM users_biomed WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as count FROM users_biomed WHERE 1=1';
     const params = [];
 
     if (role) {
-      query += ' AND role = $' + (params.length + 1);
-      countQuery += ' AND role = $' + (params.length + 1);
+      query += ' AND role = ?';
+      countQuery += ' AND role = ?';
       params.push(role);
     }
 
     if (status) {
-      query += ' AND status = $' + (params.length + 1);
-      countQuery += ' AND status = $' + (params.length + 1);
+      query += ' AND status = ?';
+      countQuery += ' AND status = ?';
       params.push(status);
     }
 
     if (is_instructor !== undefined) {
-      query += ' AND is_instructor = $' + (params.length + 1);
-      countQuery += ' AND is_instructor = $' + (params.length + 1);
-      params.push(is_instructor === 'true');
+      query += ' AND is_instructor = ?';
+      countQuery += ' AND is_instructor = ?';
+      params.push(is_instructor === 'true' ? 1 : 0);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
 
-    const [usersResult, countResult] = await Promise.all([
-      pool.query(query, [...params, limit, offset]),
-      pool.query(countQuery, params)
-    ]);
+    const [usersResult] = await connection.query(query, [...params, parseInt(limit), offset]);
+    const [countResult] = await connection.query(countQuery, params);
 
-    const users = usersResult.rows.map(user => new User(user));
-    const totalCount = parseInt(countResult.rows[0].count);
+    await connection.release();
+
+    const users = usersResult.map(user => new User(user));
+    const totalCount = countResult[0].count;
     const totalPages = Math.ceil(totalCount / limit);
 
     res.status(200).json({
@@ -180,14 +185,17 @@ exports.getAllUsers = async (req, res) => {
 // Get user by ID
 exports.getUserById = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
-    const result = await pool.query(
-      'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE id = $1',
+    const [result] = await connection.query(
+      'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE id = ?',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    await connection.release();
+
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -195,7 +203,7 @@ exports.getUserById = async (req, res) => {
       });
     }
 
-    const user = new User(result.rows[0]);
+    const user = new User(result[0]);
 
     res.status(200).json({
       success: true,
@@ -216,14 +224,17 @@ exports.getUserById = async (req, res) => {
 // Get user by email
 exports.getUserByEmail = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { email } = req.params;
 
-    const result = await pool.query(
-      'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE email = $1',
+    const [result] = await connection.query(
+      'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE email = ?',
       [email]
     );
 
-    if (result.rows.length === 0) {
+    await connection.release();
+
+    if (result.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -231,7 +242,7 @@ exports.getUserByEmail = async (req, res) => {
       });
     }
 
-    const user = new User(result.rows[0]);
+    const user = new User(result[0]);
 
     res.status(200).json({
       success: true,
@@ -252,6 +263,7 @@ exports.getUserByEmail = async (req, res) => {
 // Update user
 exports.updateUser = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
     const {
       first_name,
@@ -268,12 +280,13 @@ exports.updateUser = async (req, res) => {
     } = req.body;
 
     // Get current user
-    const currentUser = await pool.query(
-      'SELECT * FROM users_biomed WHERE id = $1',
+    const [currentUser] = await connection.query(
+      'SELECT * FROM users_biomed WHERE id = ?',
       [id]
     );
 
-    if (currentUser.rows.length === 0) {
+    if (currentUser.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -284,75 +297,64 @@ exports.updateUser = async (req, res) => {
     // Build update query
     const updates = [];
     const values = [];
-    let paramCount = 1;
 
     if (first_name !== undefined) {
-      updates.push(`first_name = $${paramCount}`);
+      updates.push('first_name = ?');
       values.push(first_name);
-      paramCount++;
     }
 
     if (last_name !== undefined) {
-      updates.push(`last_name = $${paramCount}`);
+      updates.push('last_name = ?');
       values.push(last_name);
-      paramCount++;
     }
 
     if (title !== undefined) {
-      updates.push(`title = $${paramCount}`);
+      updates.push('title = ?');
       values.push(title);
-      paramCount++;
     }
 
     if (address !== undefined) {
-      updates.push(`address = $${paramCount}`);
+      updates.push('address = ?');
       values.push(address);
-      paramCount++;
     }
 
     if (profile_image_url !== undefined) {
-      updates.push(`profile_image_url = $${paramCount}`);
+      updates.push('profile_image_url = ?');
       values.push(profile_image_url);
-      paramCount++;
     }
 
     if (biography !== undefined) {
-      updates.push(`biography = $${paramCount}`);
+      updates.push('biography = ?');
       values.push(biography);
-      paramCount++;
     }
 
     if (linkedin_url !== undefined) {
-      updates.push(`linkedin_url = $${paramCount}`);
+      updates.push('linkedin_url = ?');
       values.push(linkedin_url);
-      paramCount++;
     }
 
     if (github_url !== undefined) {
-      updates.push(`github_url = $${paramCount}`);
+      updates.push('github_url = ?');
       values.push(github_url);
-      paramCount++;
     }
 
     if (role !== undefined) {
-      updates.push(`role = $${paramCount}`);
+      updates.push('role = ?');
       values.push(role);
-      paramCount++;
     }
 
     if (is_instructor !== undefined) {
-      updates.push(`is_instructor = $${paramCount}`);
+      updates.push('is_instructor = ?');
       values.push(is_instructor);
-      paramCount++;
     }
 
     if (status !== undefined) {
-      updates.push(`status = $${paramCount}`);
+      updates.push('status = ?');
       values.push(status);
-      paramCount++;
     }
 
     if (updates.length === 0) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -360,20 +362,21 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    updates.push('updated_at = CURRENT_TIMESTAMP');
     values.push(id);
 
-    const query = `
-      UPDATE users_biomed
-      SET ${updates.join(', ')}
-      WHERE id = $${paramCount}
-      RETURNING id, first_name, last_name, title, email, phone, address,
-                profile_image_url, biography, linkedin_url, github_url,
-                role, is_instructor, status, created_at, updated_at
-    `;
+    const query = `UPDATE users_biomed SET ${updates.join(', ')} WHERE id = ?`;
 
-    const result = await pool.query(query, values);
-    const user = new User(result.rows[0]);
+    await connection.query(query, values);
+
+    // Fetch updated user
+    const [updatedUser] = await connection.query(
+      'SELECT * FROM users_biomed WHERE id = ?',
+      [id]
+    );
+
+    await connection.release();
+    const user = new User(updatedUser[0]);
 
     res.status(200).json({
       success: true,
@@ -394,14 +397,14 @@ exports.updateUser = async (req, res) => {
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM users_biomed WHERE id = $1 RETURNING id',
-      [id]
-    );
+    // Check if user exists
+    const [user] = await connection.query('SELECT id FROM users_biomed WHERE id = ?', [id]);
 
-    if (result.rows.length === 0) {
+    if (user.length === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -409,11 +412,14 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
+    await connection.query('DELETE FROM users_biomed WHERE id = ?', [id]);
+    await connection.release();
+
     res.status(200).json({
       success: true,
       message: 'User deleted successfully',
       data: {
-        id: result.rows[0].id,
+        id: id,
         deleted_at: new Date().toISOString()
       },
       timestamp: new Date().toISOString()
@@ -431,28 +437,29 @@ exports.deleteUser = async (req, res) => {
 // Get instructors
 exports.getInstructors = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { page = 1, limit = 20, status } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE (role = $1 OR is_instructor = true)';
-    let countQuery = 'SELECT COUNT(*) FROM users_biomed WHERE (role = $1 OR is_instructor = true)';
+    let query = 'SELECT id, first_name, last_name, title, email, phone, address, profile_image_url, biography, linkedin_url, github_url, role, is_instructor, status, created_at, updated_at FROM users_biomed WHERE (role = ? OR is_instructor = true)';
+    let countQuery = 'SELECT COUNT(*) as count FROM users_biomed WHERE (role = ? OR is_instructor = true)';
     const params = ['INSTRUCTOR'];
 
     if (status) {
-      query += ' AND status = $2';
-      countQuery += ' AND status = $2';
+      query += ' AND status = ?';
+      countQuery += ' AND status = ?';
       params.push(status);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
 
-    const [usersResult, countResult] = await Promise.all([
-      pool.query(query, [...params, limit, offset]),
-      pool.query(countQuery, params)
-    ]);
+    const [usersResult] = await connection.query(query, [...params, parseInt(limit), offset]);
+    const [countResult] = await connection.query(countQuery, ['INSTRUCTOR'].concat(status ? [status] : []));
 
-    const users = usersResult.rows.map(user => new User(user));
-    const totalCount = parseInt(countResult.rows[0].count);
+    await connection.release();
+
+    const users = usersResult.map(user => new User(user));
+    const totalCount = countResult[0].count;
     const totalPages = Math.ceil(totalCount / limit);
 
     res.status(200).json({
@@ -480,10 +487,12 @@ exports.getInstructors = async (req, res) => {
 // Change user status
 exports.changeUserStatus = async (req, res) => {
   try {
+    const connection = await pool.getConnection();
     const { id } = req.params;
     const { status } = req.body;
 
     if (!status || !['ACTIVE', 'INACTIVE'].includes(status)) {
+      await connection.release();
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
@@ -491,17 +500,14 @@ exports.changeUserStatus = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
-      `UPDATE users_biomed
-       SET status = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING id, first_name, last_name, title, email, phone, address,
-                 profile_image_url, biography, linkedin_url, github_url,
-                 role, is_instructor, status, created_at, updated_at`,
+    // Check if user exists and update
+    const [result] = await connection.query(
+      'UPDATE users_biomed SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [status, id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
+      await connection.release();
       return res.status(404).json({
         success: false,
         error: 'Not Found',
@@ -509,7 +515,11 @@ exports.changeUserStatus = async (req, res) => {
       });
     }
 
-    const user = new User(result.rows[0]);
+    // Fetch updated user
+    const [updatedUser] = await connection.query('SELECT * FROM users_biomed WHERE id = ?', [id]);
+
+    await connection.release();
+    const user = new User(updatedUser[0]);
 
     res.status(200).json({
       success: true,
