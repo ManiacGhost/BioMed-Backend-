@@ -1,10 +1,29 @@
 require('dotenv').config();
 
-// Initialize logger FIRST before anything else
-const logger = require('./config/logger');
-
 const fs = require('fs');
 const path = require('path');
+
+// Simple direct logging - bypasses logger module issues
+const logFileRoot = path.join(process.cwd(), 'app.log');
+
+function directLog(message) {
+  const timestamp = new Date().toISOString();
+  const logMsg = `[${timestamp}] ${message}`;
+  console.log(logMsg);
+  try {
+    fs.appendFileSync(logFileRoot, logMsg + '\n', { encoding: 'utf8' });
+  } catch (err) {
+    console.error(`Failed to write log: ${err.message}`);
+  }
+}
+
+directLog('=== APPLICATION STARTING ===');
+directLog(`Working directory: ${process.cwd()}`);
+directLog(`Node environment: ${process.env.NODE_ENV}`);
+
+// Now load logger
+const logger = require('./config/logger');
+logger.info('Logger module initialized');
 
 const logFile = path.join(__dirname, 'server.log');
 
@@ -14,11 +33,17 @@ function logToFile(message) {
 
 // Catch crashes
 process.on('uncaughtException', (err) => {
-  logToFile('UNCAUGHT EXCEPTION:\n' + err.stack + '\n');
+  const msg = `UNCAUGHT EXCEPTION:\n${err.stack || err}\n`;
+  logToFile(msg);
+  directLog(msg);
+  logger.error('Uncaught Exception', err);
 });
 
 process.on('unhandledRejection', (err) => {
-  logToFile('UNHANDLED REJECTION:\n' + err + '\n');
+  const msg = `UNHANDLED REJECTION:\n${err}\n`;
+  logToFile(msg);
+  directLog(msg);
+  logger.error('Unhandled Rejection', err);
 });
 const express = require('express');
 const cors = require('cors');
@@ -43,7 +68,10 @@ app.use(`/api/${API_VERSION}/contact`, require('./routes/contact'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logToFile(`EXPRESS ERROR:\n${err.stack}\n`);
+  const errorMsg = `EXPRESS ERROR:\n${err.stack || err}\n`;
+  logToFile(errorMsg);
+  directLog(errorMsg);
+  logger.error('Express Error', err);
   console.error(err.stack);
   res.status(500).json({
     error: 'Internal Server Error',
@@ -59,13 +87,14 @@ app.use((req, res) => {
   });
 });
 
-app.use(cors());
-
 app.listen(PORT, () => {
   const startupMsg = `Server started on port ${PORT}`;
   logToFile(startupMsg);
+  directLog(startupMsg);
+  directLog(`API Version: ${API_VERSION}`);
+  directLog(`Environment: ${process.env.NODE_ENV}`);
+  directLog(`Log file: ${logFileRoot}`);
   logger.info(startupMsg);
   logger.info(`API Version: ${API_VERSION}`);
   logger.info(`Environment: ${process.env.NODE_ENV}`);
-  logger.info(`Logs directory: ${path.join(__dirname, 'logs')}`);
 });
