@@ -236,14 +236,15 @@ exports.createBlog = async (req, res) => {
 
     // Validate required fields
     if (!title || !content || !category_id || !author_id || !slug) {
-      await connection.release();
+      testDb = await connection.release();
+      console.log(testDb);
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
         message: 'Title, content, category_id, author_id, and slug are required'
       });
     }
-
+    console.log
     const query = `
       INSERT INTO blogs_biomed (
         title, slug, category_id, author_id, author_name, author_email, keywords, content, thumbnail_url,
@@ -253,7 +254,7 @@ exports.createBlog = async (req, res) => {
         allow_comments, show_on_homepage, is_sticky
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-
+    
     const values = [
       title, slug, category_id, author_id, author_name, author_email, keywords, content, thumbnail_url,
       banner_url, is_popular, status, short_description, reading_time,
