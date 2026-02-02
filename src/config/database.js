@@ -13,7 +13,7 @@ const logToFile = (msg) => {
     console.error('Failed to log:', err.message);
   }
 };
-
+console.log('[Database] Initializing connection pool...');
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USERNAME,
