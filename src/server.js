@@ -1,4 +1,21 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
+const logFile = path.join(__dirname, 'server.log');
+
+function logToFile(message) {
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${message}\n`);
+}
+
+// Catch crashes
+process.on('uncaughtException', (err) => {
+  logToFile('UNCAUGHT EXCEPTION:\n' + err.stack + '\n');
+});
+
+process.on('unhandledRejection', (err) => {
+  logToFile('UNHANDLED REJECTION:\n' + err + '\n');
+});
 const express = require('express');
 const cors = require('cors');
 
@@ -22,6 +39,7 @@ app.use(`/api/${API_VERSION}/contact`, require('./routes/contact'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  logToFile(`EXPRESS ERROR:\n${err.stack}\n`);
   console.error(err.stack);
   res.status(500).json({
     error: 'Internal Server Error',
@@ -40,6 +58,9 @@ app.use((req, res) => {
 app.use(cors());
 
 app.listen(PORT, () => {
+  logToFile(`Server started on port ${PORT}`);
+  logToFile(`API Version: ${API_VERSION}`);
+  logToFile(`Environment: ${process.env.NODE_ENV}`);
   console.log(`Medical Platform API running on http://localhost:${PORT}`);
   console.log(`API Version: ${API_VERSION}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);

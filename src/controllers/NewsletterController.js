@@ -2,6 +2,7 @@ const NewsletterSubscriber = require('../models/NewsletterSubscriber');
 const pool = require('../config/database');
 const { sendConfirmationEmail, sendWelcomeEmail, sendUnsubscribeEmail } = require('../config/email');
 const crypto = require('crypto');
+const logger = require('../config/logger');
 
 // Helper function to validate email
 function isValidEmail(email) {
@@ -26,7 +27,7 @@ exports.getAllSubscribers = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching subscribers:', error);
+    logger.error('Error fetching subscribers', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -58,7 +59,7 @@ exports.getSubscriberByEmail = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching subscriber:', error);
+    logger.error('Error fetching subscriber', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -177,7 +178,7 @@ exports.confirmSubscription = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error confirming subscription:', error);
+    logger.error('Error confirming subscription', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -245,7 +246,7 @@ exports.unsubscribe = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error unsubscribing:', error);
+    logger.error('Error unsubscribing', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -284,7 +285,7 @@ exports.getStatistics = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching statistics:', error);
+    logger.error('Error fetching statistics', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',

@@ -1,5 +1,6 @@
 const Blog = require('../models/Blog');
 const pool = require('../config/database');
+const logger = require('../config/logger');
 
 // Get all blogs
 exports.getAllBlogs = async (req, res) => {
@@ -18,7 +19,7 @@ exports.getAllBlogs = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching blogs:', error);
+    logger.error('Error fetching blogs', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -191,7 +192,7 @@ exports.getFilteredBlogs = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching filtered blogs:', error);
+    logger.error('Error fetching filtered blogs', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -274,7 +275,7 @@ exports.createBlog = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error creating blog:', error);
+    logger.error('Error creating blog', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -348,7 +349,7 @@ exports.updateBlog = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error updating blog:', error);
+    logger.error('Error updating blog', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -383,7 +384,7 @@ exports.deleteBlog = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error deleting blog:', error);
+    logger.error('Error deleting blog', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',

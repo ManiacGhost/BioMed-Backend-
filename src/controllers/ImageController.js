@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const pool = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const logger = require('../config/logger');
 
 // Upload image to Cloudinary
 exports.uploadImage = async (req, res) => {
@@ -25,7 +26,7 @@ exports.uploadImage = async (req, res) => {
       },
       async (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:', error);
+          logger.error('Cloudinary upload error', error);
           return res.status(500).json({
             success: false,
             error: 'Upload Failed',
@@ -77,7 +78,8 @@ exports.uploadImage = async (req, res) => {
           });
         } catch (dbError) {
           if (connection) await connection.release();
-          console.error('Database error:', dbError);
+          if (connection) await connection.release();
+          logger.error('Database error', dbError);
           // Image uploaded to Cloudinary but DB save failed
           res.status(201).json({
             success: true,
@@ -99,7 +101,7 @@ exports.uploadImage = async (req, res) => {
     // Pipe the file buffer to the upload stream
     uploadStream.end(req.file.buffer);
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -213,7 +215,7 @@ exports.getAllImages = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching images:', error);
+    logger.error('Error fetching images', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -262,7 +264,7 @@ exports.deleteImage = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error deleting image:', error);
+    logger.error('Error deleting image', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',

@@ -1,6 +1,7 @@
 const ContactMessage = require('../models/ContactMessage');
 const pool = require('../config/database');
 const { sendContactConfirmationEmail, sendContactAdminNotificationEmail } = require('../config/email');
+const logger = require('../config/logger');
 
 // Helper function to validate email
 function isValidEmail(email) {
@@ -97,7 +98,7 @@ exports.submitContact = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error submitting contact form:', error);
+    logger.error('Error submitting contact form', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -154,7 +155,7 @@ exports.getAllMessages = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    logger.error('Error fetching messages', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -186,7 +187,7 @@ exports.getMessageById = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching message:', error);
+    logger.error('Error fetching message', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -235,7 +236,7 @@ exports.updateMessageStatus = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error updating message status:', error);
+    logger.error('Error updating message status', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -272,7 +273,7 @@ exports.deleteMessage = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error deleting message:', error);
+    logger.error('Error deleting message', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -305,7 +306,7 @@ exports.getStatistics = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching statistics:', error);
+    logger.error('Error fetching statistics', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const pool = require('../config/database');
 const cloudinary = require('../config/cloudinary');
+const logger = require('../config/logger');
 
 // Hash password
 const hashPassword = (password) => {
@@ -111,7 +112,7 @@ exports.addUser = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    logger.error('Error creating user', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -173,7 +174,7 @@ exports.getAllUsers = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error('Error fetching users', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -385,7 +386,7 @@ exports.updateUser = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error updating user:', error);
+    logger.error('Error updating user', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -425,7 +426,7 @@ exports.deleteUser = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logger.error('Error deleting user', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -475,7 +476,7 @@ exports.getInstructors = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching instructors:', error);
+    logger.error('Error fetching instructors', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -528,7 +529,7 @@ exports.changeUserStatus = async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error updating user status:', error);
+    logger.error('Error updating user status', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
@@ -586,7 +587,7 @@ exports.uploadProfileImage = async (req, res) => {
 
     uploadStream.end(req.file.buffer);
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error', error);
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
